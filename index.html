@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Gestor de Tareas">
+    <link rel="apple-touch-icon" href="https://es.pandora.net/favicon.ico">
+    <title>Gestor de Tareas</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f4f7f6;
+        display: flex;
+        justify-content: center;
+        padding: 20px;
+        margin: 0;
+      }
+      .container {
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 500px;
+        box-sizing: border-box;
+      }
+      h2 {
+        color: #333;
+        text-align: center;
+        margin-bottom: 20px;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        color: #666;
+        font-weight: bold;
+      }
+      input,
+      textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        box-sizing: border-box;
+        font-size: 16px;
+      }
+      /* Cambios aquí para el pad de firma */
+      .canvas-container {
+        width: 100%;
+        background: #fafafa;
+        border: 2px dashed #ccc;
+        border-radius: 6px;
+        overflow: hidden;
+        line-height: 0; /* Evita espacios extra debajo del canvas */
+      }
+      #signature-pad {
+        width: 100%; /* Ocupa todo el ancho del contenedor */
+        height: 200px; /* Altura fija o relativa */
+        cursor: crosshair;
+        touch-action: none;
+      }
+      .canvas-error {
+        border: 2px solid #dc3545 !important;
+        background-color: #fff8f8 !important;
+      }
+      .btn-container {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+      }
+      button {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: 0.3s;
+      }
+      .btn-submit {
+        background-color: #28a745;
+        color: white;
+      }
+      .btn-submit:hover {
+        background-color: #218838;
+      }
+      .btn-clear {
+        background-color: #dc3545;
+        color: white;
+      }
+      .btn-clear:hover {
+        background-color: #c82333;
+      }
+      .btn-clear-form {
+        background-color: #007bff;
+        color: white;
+      }
+      .btn-clear-form:hover {
+        background-color: #0069d9;
+      }
+      .spinner {
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top: 4px solid #28a745; /* El verde de tu app */
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>📝 Gestor de Tareas</h2>
+      <form id="taskForm">
+        <div class="form-group">
+          <label>Fecha de Hoy</label>
+          <input type="date" id="todayDate" required /> <!-- Quizás que esto se rellene solo-->
+        </div>
+        <div class="form-group">
+          <label>Nombre del Responsable</label>
+          <input type="text" id="name" placeholder="Tu nombre..." required />
+        </div>
+        <div class="form-group">
+          <label>Descripción de la Tarea</label>
+          <textarea
+            id="task"
+            rows="4"
+            placeholder="Descripción de la tarea"
+            required
+          ></textarea>
+        </div>
+        <div style="margin-bottom: 15px;">
+          <label>Imagen:</label><br>
+          <input type="file" id="photoInput" accept="image/*">
+        </div>
+        <div class="form-group">
+          <label>Fecha de Entrega</label>
+          <input type="date" id="dueDate" required />
+        </div>
+        <div class="form-group">
+          <label>Firma Digital</label>
+          <div class="canvas-container">
+            <canvas id="signature-pad"></canvas>
+          </div>
+        </div>
+        <div class="btn-container">
+          <button type="button" class="btn-clear" onclick="clearSignature()">Limpiar Firma</button>
+          <button type="submit" class="btn-submit">Enviar Datos</button>
+        </div>
+        <div class="btn-container">
+          <button type="button" class="btn-clear-form" onclick="clearForm()">Nueva Tarea</button>
+        </div>
+      </form>
+    </div>
+    <div id="loadingOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; flex-direction:column; align-items:center; justify-content:center; color:white; font-family:sans-serif;">
+      <div class="spinner"></div>
+      <p style="margin-top:15px; font-weight:bold;">Enviando tarea...</p>
+      <p style="font-size:0.8em; opacity:0.8;">Esto puede tardar unos segundos</p>
+    </div>
+
+    <script>
+      let blankCanvasBase64 = "data:image/png;base64,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";
+
+      function blankSignature() {
+        blankCanvasBase64 = canvas.toDataURL();
+      }
+      
+      document.addEventListener("DOMContentLoaded", () => {          
+          blankSignature();
+      });
+
+      document.getElementById("todayDate").valueAsDate = new Date();
+
+      // Lógica del Canvas de Firma
+      const canvas = document.getElementById("signature-pad");
+      const ctx = canvas.getContext("2d");      
+
+      let drawing = false;
+
+      // Función para ajustar la resolución interna del canvas al tamaño visual
+      function resizeCanvas() {
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        canvas.width = canvas.offsetWidth * ratio;
+        canvas.height = canvas.offsetHeight * ratio;
+        ctx.scale(ratio, ratio);
+        blankSignature();
+      }
+
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas(); // Llamada inicial
+
+      function startDrawing(e) {
+        drawing = true;
+        draw(e);
+      }
+
+      function stopDrawing() {
+        drawing = false;
+        ctx.beginPath();
+      }
+
+      function draw(e) {
+        if (!drawing) return;
+        
+        e.preventDefault(); // Evita el scroll mientras firmas en móvil
+        
+        ctx.lineWidth = 2;
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "#000";
+
+        const rect = canvas.getBoundingClientRect();
+        
+        // Manejo mejorado de coordenadas para touch y mouse
+        let clientX, clientY;
+        if (e.touches && e.touches.length > 0) {
+          clientX = e.touches[0].clientX;
+          clientY = e.touches[0].clientY;
+        } else {
+          clientX = e.clientX;
+          clientY = e.clientY;
+        }
+
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+      }
+
+      canvas.addEventListener("mousedown", startDrawing);
+      canvas.addEventListener("mousemove", draw);
+      window.addEventListener("mouseup", stopDrawing);
+      
+      canvas.addEventListener("touchstart", startDrawing, { passive: false });
+      canvas.addEventListener("touchmove", draw, { passive: false });
+      window.addEventListener("touchend", stopDrawing);
+
+      function clearSignature() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // Función auxiliar para convertir archivo a Base64
+      const toBase64 = file => new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = error => reject(error);
+      });
+      
+      // Envío de datos corregido
+      document.getElementById("taskForm").onsubmit = async (e) => {
+        e.preventDefault();
+
+        const signatureBase64 = canvas.toDataURL();
+        if (signatureBase64 == blankCanvasBase64) {
+          document.querySelector(".canvas-container").classList.add("canvas-error");
+          alert("⚠️ Por favor, firma el documento antes de enviar.");
+          return; // Detiene la ejecución aquí
+        } else {
+          document.querySelector(".canvas-container").classList.remove("canvas-error");
+        }
+
+        // --- MOSTRAR OVERLAY ---
+        const overlay = document.getElementById("loadingOverlay");
+        overlay.style.display = "flex";
+
+        const photoInput = document.getElementById('photoInput');
+        let photoBase64 = "";
+
+        // Si hay una foto, la convertimos a base64
+        if (photoInput.files.length > 0) {
+            photoBase64 = await toBase64(photoInput.files[0]);
+        }
+
+        // Para que el ejemplo funcione, usaré los valores directos:
+        const payload = {
+          fechaHoy: document.getElementById("todayDate").value || new Date().toLocaleDateString(),
+          nombre: document.getElementById("name").value,
+          tarea: document.getElementById("task").value,
+          foto: photoBase64,
+          fechaEntrega: document.getElementById("dueDate").value,
+          firma: signatureBase64
+        };
+
+        // REEMPLAZA ESTE URL con el de tu Google App Script
+        const scriptURL = "https://script.google.com/macros/s/AKfycbwZwLwOh6pKkLYXoi_oUliSyyeLee9ewC3hbbsI1SHWXdS1rv_XYDc12E1E1do3Fjkw/exec";
+        //const ID = "AKfycbwZwLwOh6pKkLYXoi_oUliSyyeLee9ewC3hbbsI1SHWXdS1rv_XYDc12E1E1do3Fjkw";
+        try {
+          const response = await fetch(scriptURL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          alert("Datos enviados con éxito");
+        } catch (error) {
+          alert("Error al enviar: " + error);
+        } finally {
+          // --- OCULTAR OVERLAY SIEMPRE AL FINAL ---
+          overlay.style.display = "none";
+        }
+      };
+      function clearForm() {
+        if (confirm("¿Estás seguro de que quieres limpiar todo el formulario?")) {
+          const form = document.getElementById("taskForm");
+          
+          // 1. Limpiamos los inputs de texto y selectores (excepto la fecha)
+          // Suponiendo que tu input de fecha tiene el id "fechaRegistro"
+          const inputs = form.querySelectorAll('input:not(#todayDate), textarea, select');
+          inputs.forEach(input => input.value = "");
+
+          // 2. Limpiamos el Canvas de la firma
+          clearSignature();
+          document.querySelector(".canvas-container").classList.remove("canvas-error");
+          
+          // 3. Resetear el input de archivo (importante)
+          const photoInput = document.getElementById('photoInput');
+          if (photoInput) photoInput.value = "";
+
+          // 4. Si tienes un preview de la foto, también lo limpiamos
+          /*const preview = document.getElementById('photoPreview'); // Ajusta el ID si tienes uno
+          if (preview) preview.src = "";*/
+        }
+      }
+    </script>
+  </body>
+</html>
