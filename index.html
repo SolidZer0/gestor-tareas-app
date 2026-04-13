@@ -6,7 +6,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Gestor de Tareas">
-    <link rel="apple-touch-icon" href="https://es.pandora.net/favicon.ico">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/x-icon" href="https://es.pandora.net/favicon.ico">
     <title>Gestor de Tareas</title>
     <style>
@@ -381,6 +382,16 @@
           /*const preview = document.getElementById('photoPreview'); // Ajusta el ID si tienes uno
           if (preview) preview.src = "";*/
         }
+      }
+    </script>
+    <script>
+      // Verificamos si el navegador es compatible con Service Workers
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log('✅ Service Worker registrado', reg))
+            .catch(err => console.warn('❌ Error al registrar SW', err));
+        });
       }
     </script>
   </body>
