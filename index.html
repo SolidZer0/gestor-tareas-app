@@ -219,6 +219,9 @@
 
       window.onload = () => {
         scriptURL = document.getElementById('urlInput').value = localStorage.getItem('miScriptURL');
+        if(!scriptURL || scriptURL.trim().length === 0) {
+          toggleModal(true);
+        }
         blankSignature();
       };
 
